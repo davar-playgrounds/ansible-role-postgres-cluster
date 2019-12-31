@@ -1,0 +1,89 @@
+---
+# tasks file for ansible-role-postgres-cluster
+- name: "Include {{ ansible_distribution }} variables"
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution }}.yml"
+    - "{{ ansible_os_family }}.yml"
+
+- name: Install packages
+  become: true
+  package:
+    name: "{{ pkg }}"
+    state: "latest"
+  with_items: "{{ postgres_packages }}"
+  loop_control:
+    loop_var: pkg
+  ignore_errors: "{{ ansible_check_mode }}"
+  register: install_packages
+  until: install_packages is success
+  retries: 5
+  delay: 2
+
+- name: Create Postgres group
+  become: true
+  group:
+    name: "{{ postgres_os_user }}"
+    state: present
+
+- name: Create Postgres user
+  become: true
+  user:
+    name: "{{ postgres_os_user }}"
+    group: "{{ postgres_os_group }}"
+
+- name: Allow ports in firewall
+  become: true
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+  loop:
+    - 5432/tcp
+    - 8008/tcp
+  notify:
+    - restart firewalld
+
+- name: Install patroni
+  become: true
+  become_user: "{{ postgres_os_user }}"
+  pip:
+    name: "patroni[zookeeper]"
+    extra_args: "--user"
+
+- name: Set selinux context for patroni binary
+  become: true
+  file:
+    path: "/home/{{ postgres_os_user }}/.local/bin/patroni"
+    seuser: "user_u"
+    setype: "bin_t"
+
+- name: Create directories
+  become: true
+  file:
+    path: "{{ item.path }}"
+    state: "directory"
+    recurse: true
+    owner: "{{ item.owner | default(postgres_os_user) }}"
+    group: "{{ item.group | default(postgres_os_group) }}"
+    mode: "{{ item.mode | default('0700') }}"
+    modification_time: preserve
+    access_time: preserve
+  loop:
+    - {path: "{{ postgres_data_dir }}" }
+
+- name: Generate config files
+  become: true
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: 0644
+    owner: "{{ postgres_os_user }}"
+    group: "{{ postgres_os_group }}"
+  loop:
+    - {src: "patroni.yml.j2", dest: "/etc/patroni.yml"}
+    - {src: "patroni.service.j2", dest: "/etc/systemd/system/patroni.service"}
+  notify:
+    - restart patroni
+
+

@@ -1,0 +1,71 @@
+---
+scope: {{ postgres_cluster_name }}
+name: postgresql{{ postgres_instance_suffix }}
+
+restapi:
+  listen: {{ ansible_host }}:8008
+  connect_address: {{ ansible_host }}:8008
+
+zookeeper:
+  hosts: {{ groups['zookeeper'] | map('extract', hostvars) | map(attribute='ansible_host') | product(['2181']) | map('join', ':') | join(',') }}
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      parameters:
+{% if postgres_bootstrap_parameters is defined and postgres_bootstrap_parameters|length %}
+        {{ postgres_bootstrap_parameters }}
+{% endif %}
+
+  initdb:  # Note: It needs to be a list (some options need values, others are switches)
+  - encoding: UTF8
+  - data-checksums
+
+  pg_hba:  # Add following lines to pg_hba.conf after running 'initdb'
+  - host replication replicator 127.0.0.1/32 md5
+{% for server in groups['postgres'] %}
+  - host replication replicator {{ hostvars[server].ansible_host }}/32 md5
+{% endfor %}
+  - host all all 0.0.0.0/0 md5
+
+  # Some additional users users which needs to be created after initializing new cluster
+  users:
+    admin:
+      password: {{ postgres_admin_user_password }}
+      options:
+        - createrole
+        - createdb
+
+postgresql:
+  listen: 127.0.0.1,{{ ansible_host }}:{{ postgres_instance_port }}
+  connect_address: {{ ansible_host }}:{{ postgres_instance_port }}
+  data_dir: {{ postgres_data_dir }}
+  pgpass: /tmp/pgpass{{ postgres_instance_suffix }}
+  authentication:
+    replication:
+      username: {{ postgres_replication_user_name }}
+      password: {{ postgres_replication_user_password }}
+    superuser:
+      username: {{ postgres_super_user_name }}
+      password: {{ postgres_super_user_password }}
+    rewind:  # Has no effect on postgres 10 and lower
+      username: {{ postgres_rewind_user_name }}
+      password: {{ postgres_rewind_user_password }}
+  parameters:
+    # Fully qualified kerberos ticket file for the running user
+    # same as KRB5CCNAME used by the GSS
+    # unix_socket_directories: '.'
+
+watchdog:
+  mode: off # Allowed values: off, automatic, required
+
+tags:
+    nofailover: false
+    noloadbalance: false
+    clonefrom: false
+    nosync: false

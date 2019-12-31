@@ -1,0 +1,8 @@
+---
+postgres_packages:
+  - python3-psycopg2
+  - firewalld
+  - postgresql
+  - postgresql-server
+  - python3-pip
+  - python3-devel

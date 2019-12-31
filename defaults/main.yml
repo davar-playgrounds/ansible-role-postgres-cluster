@@ -1,0 +1,18 @@
+---
+# defaults file for ansible-role-postgres-cluster
+
+postgres_os_user: postgres
+postgres_os_group: postgres
+
+postgres_cluster_name: eco
+postgres_instance_suffix: "0"
+postgres_instance_port: 5432
+postgres_data_dir: "/var/lib/pgsql/data/postgres{{ postgres_instance_suffix }}"
+
+postgres_admin_user_password: admin-pwd
+postgres_replication_user_name: replicator
+postgres_replication_user_password: rep-pwd
+postgres_super_user_name: postgres
+postgres_super_user_password: su-pwd
+postgres_rewind_user_name: rewind_user
+postgres_rewind_user_password: rewind-pwd
