@@ -36,7 +36,7 @@ bootstrap:
   # Some additional users users which needs to be created after initializing new cluster
   users:
     admin:
-      password: {{ postgres_admin_user_password }}
+      password: "{{ postgres_admin_user_password }}"
       options:
         - createrole
         - createdb
@@ -49,13 +49,13 @@ postgresql:
   authentication:
     replication:
       username: {{ postgres_replication_user_name }}
-      password: {{ postgres_replication_user_password }}
+      password: "{{ postgres_replication_user_password }}"
     superuser:
       username: {{ postgres_super_user_name }}
-      password: {{ postgres_super_user_password }}
+      password: "{{ postgres_super_user_password }}"
     rewind:  # Has no effect on postgres 10 and lower
       username: {{ postgres_rewind_user_name }}
-      password: {{ postgres_rewind_user_password }}
+      password: "{{ postgres_rewind_user_password }}"
   parameters:
     # Fully qualified kerberos ticket file for the running user
     # same as KRB5CCNAME used by the GSS
